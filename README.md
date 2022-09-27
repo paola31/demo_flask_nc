@@ -1,4 +1,5 @@
 # Demo Flask
+This project uses Python 3.6.
 
 ## Dependencies
 To install the required dependencies, please follow these steps:
