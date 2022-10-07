@@ -2,6 +2,7 @@ import functools
 import random
 import flask
 from . import utils
+from sqlite3 import Error
 
 from email.message import EmailMessage
 import smtplib
@@ -31,10 +32,10 @@ def activate():
 
             if attempt is not None:
                 db.execute(
-                    'UPDATE activationlink SET state = ? WHERE id = ?', (utils.U_CONFIRMED, attempt['id'])
+                    'UPDATE activationlink SET state = ? WHERE id = ?', (utils.U_CONFIRMED, attempt[0])
                 )
                 db.execute(
-                    'INSERT INTO user (username, password,salt,email) VALUES (?,?,?,?)', (attempt['username'], attempt['password'], attempt['salt'], attempt['email'])
+                    'INSERT INTO user (username, password,salt,email) VALUES (?,?,?,?)', (attempt[5], attempt[6], attempt[7], attempt[8])
                 )
                 db.commit()
 
@@ -50,11 +51,15 @@ def register():
         if g.user:
             return redirect(url_for('inbox.show'))
       
-        if request.method == 'POST':    
+        if request.method == 'POST':
             username = request.form['username']
             password = request.form['password']
             email = request.form['email']
-            
+
+            print(username)
+            print(password)
+            print(email)
+
             db = get_db()
             error = None
 
@@ -73,18 +78,22 @@ def register():
                 flash(error)
                 return render_template('auth/register.html')
 
-            if db.execute('SELECT id FROM user WHERE username = ?', (username,)).fetchone() is not None:
+            sql = "SELECT id FROM user WHERE username = '%s'" % username
+            user = db.execute(sql).fetchone()
+            print(user)
+            if user is not None:
                 error = 'User {} is already registered.'.format(username)
                 flash(error)
                 return render_template('auth/register.html')
             
             if((not email) or (not utils.isEmailValid(email))):
-                error =  'Email address invalid.'
+                error = 'Email address invalid.'
                 flash(error)
                 return render_template('auth/register.html')
-            
-            if db.execute('SELECT id FROM user WHERE email = ?', (email,)).fetchone() is not None:
-                error =  'Email {} is already registered.'.format(email)
+
+            sql = "SELECT id FROM user WHERE email = '%s'" % email
+            if db.execute(sql).fetchone() is not None:
+                error = 'Email {} is already registered.'.format(email)
                 flash(error)
                 return render_template('auth/register.html')
             
@@ -98,8 +107,8 @@ def register():
             number = hex(random.getrandbits(512))[2:]
 
             db.execute(
-                'INSERT INTO activationlink (challenge, state, username, password,salt,email) VALUES (?,?,?,?,?,?)',
-                (number, utils.U_UNCONFIRMED, username, hashP, salt, email)
+                 'INSERT INTO activationlink (challenge, state, username, password,salt,email) VALUES (?,?,?,?,?,?)',
+                 (number, utils.U_UNCONFIRMED, username, hashP, salt, email)
             )
             db.commit()
 
@@ -110,12 +119,12 @@ def register():
             content = 'Hello there, to activate your account, please click on this link ' + flask.url_for('auth.activate', _external=True) + '?auth=' + number
             
             send_email(credentials, receiver=email, subject='Activate your account', message=content)
-            
             flash('Please check in your registered email to activate your account')
             return render_template('auth/login.html') 
 
         return render_template('auth/register.html') 
     except:
+        #print(Error.sqlite_errorcode)
         return render_template('auth/register.html')
 
     
@@ -194,7 +203,8 @@ def change():
                 return render_template('auth/change.html', number=number)
         
         return render_template('auth/forgot.html')
-    except:
+    except Exception as e:
+        print(e)
         return render_template('auth/forgot.html')
 
 
@@ -276,18 +286,19 @@ def login():
             
             if user is None:
                 error = 'Incorrect username or password'
-            elif not check_password_hash(user['password'], password + user['salt']):
+            elif not check_password_hash(user[2], password + user[3]):
                 error = 'Incorrect username or password'   
 
             if error is None:
                 session.clear()
-                session['user_id'] = user['id']
+                session['user_id'] = user[0]
                 return redirect(url_for('inbox.show'))
 
             flash(error)
 
         return render_template('auth/login.html')
-    except:
+    except Exception as e:
+        print(e)
         return render_template('auth/login.html')
         
 
@@ -321,7 +332,7 @@ def login_required(view):
 def send_email(credentials, receiver, subject, message):
     # Create Email
     email = EmailMessage()
-    email["From"] = credentials['user']
+    email["From"] = credentials[0]
     email["To"] = receiver
     email["Subject"] = subject
     email.set_content(message)
@@ -329,6 +340,6 @@ def send_email(credentials, receiver, subject, message):
     # Send Email
     smtp = smtplib.SMTP("smtp-mail.outlook.com", port=587)
     smtp.starttls()
-    smtp.login(credentials['user'], credentials['password'])
-    smtp.sendmail(credentials['user'], receiver, email.as_string())
+    smtp.login(credentials[0], credentials[1])
+    smtp.sendmail(credentials[0], receiver, email.as_string())
     smtp.quit()

@@ -15,10 +15,11 @@
     <article class="post mx-4 mb-3 pl-2 border-l-4 border-slate-700">
       <header>
         <div>
-          <h3 class="text-lg">{{ message['subject'] }} from {{ message['username'] }} on {{ message['created'].strftime('%Y-%m-%d') }}</h3>
+            {# El obj retornado por ls db no tiene este metodo .strftime('%Y-%m-%d'), se deja sin formato y se sugiere procesar el formato en el controlador #}
+          <h3 class="text-lg">{{ message[1] }} from {{ message[0] }} on {{ message[3] }}</h3>
         </div>
       </header>
-      <p class="body text-slate-600">{{ message['body'] }}</p>
+      <p class="body text-slate-600">{{ message[2] }}</p>
     </article>
   {% endfor %}
 {% endblock %}

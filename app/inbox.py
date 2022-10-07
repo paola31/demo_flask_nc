@@ -16,12 +16,16 @@ def getDB():
 @bp.route('/show')
 @login_required
 def show():
-    db = get_db()
-    messages = db.execute(
-        'SELECT u.username AS username, m.subject AS subject, m.body AS body, m.created AS created'
-        ' FROM (select * from message where to_id=' + str(g.user['id']) + ') AS m JOIN User u ON  m.from_id = u.id'
-        ' ORDER BY created DESC'
-    ).fetchall()
+    try:
+        db = get_db()
+        messages = db.execute(
+            'SELECT u.username AS username, m.subject AS subject, m.body AS body, m.created AS created'
+            ' FROM (select * from message where to_id=' + str(g.user[0]) + ') AS m JOIN User u ON  m.from_id = u.id'
+            ' ORDER BY created DESC'
+        ).fetchall()
+        print(messages)
+    except Exception as e:
+        print(e)
 
     return render_template('inbox/show.html', messages=messages)
 
@@ -30,7 +34,7 @@ def show():
 @login_required
 def send():
     if request.method == 'POST':        
-        from_id = g.user['id']
+        from_id = g.user[0]
         to_username = request.form['to']
         subject = request.form['subject']
         body = request.form['body']
@@ -66,7 +70,7 @@ def send():
             db.execute(
                 'INSERT INTO message (from_id, to_id, subject, body)'
                 ' VALUES (?, ?, ?, ?)',
-                (g.user['id'], userto['id'], subject, body)
+                (g.user[0], userto[0], subject, body)
             )
             db.commit()
 
