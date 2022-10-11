@@ -167,12 +167,12 @@ def confirm():
             
             if attempt is not None:
                 db.execute(
-                    'UPDATE forgotlink SET state = ? WHERE id = ?', (utils.F_INACTIVE, attempt['id'])
+                    'UPDATE forgotlink SET state = ? WHERE id = ?', (utils.F_INACTIVE, attempt[0])
                 )
                 salt = hex(random.getrandbits(128))[2:]
                 hashP = generate_password_hash(password + salt)   
                 db.execute(
-                    'UPDATE user SET password = ?, salt=? WHERE id = ?', (hashP, salt, attempt['userid'])
+                    'UPDATE user SET password = ?, salt=? WHERE id = ?', (hashP, salt, attempt[1])
                 )
                 db.commit()
                 return redirect(url_for('auth.login'))
@@ -181,7 +181,8 @@ def confirm():
                 return render_template('auth/forgot.html')
 
         return render_template('auth/forgot.html')
-    except:
+    except Exception as e:
+        print(e)
         return render_template('auth/forgot.html')
 
 
@@ -223,20 +224,19 @@ def forgot():
                 return render_template('auth/forgot.html')
 
             db = get_db()
-            user = db.execute(
-                'SELECT * FROM user WHERE email = ?', (email,)
-            ).fetchone()
+            sql = "SELECT * FROM user WHERE email = '%s'" % email
+            user = db.execute(sql).fetchone()
 
             if user is not None:
                 number = hex(random.getrandbits(512))[2:]
                 
                 db.execute(
                     'UPDATE forgotlink SET state = ? WHERE userid = ?',
-                    (utils.F_INACTIVE,user['id'])
+                    (utils.F_INACTIVE,user[0])
                 )
                 db.execute(
                     'INSERT INTO forgotlink (userid, challenge,state ) VALUES (?,?,?)',
-                    (user['id'], number, utils.F_ACTIVE)
+                    (user[0], number, utils.F_ACTIVE)
                 )
                 db.commit()
                 
@@ -254,7 +254,8 @@ def forgot():
                 flash(error)            
 
         return render_template('auth/forgot.html')
-    except:
+    except Exception as e:
+        print(e)
         return render_template('auth/forgot.html')
 
 
